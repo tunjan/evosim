@@ -1,0 +1,335 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vellum - Evolutionary Simulation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <canvas id="simulationCanvas"></canvas>
+
+    <div id="sidebar" class="sidebar">
+        <button id="sidebar-toggle" title="Toggle Panel">›</button>
+
+        <header>
+            <h1>Vellum</h1>
+            <p>An elegant simulation of life's quiet chaos.</p>
+        </header>
+
+        <section class="controls">
+            <h2>Controls</h2>
+            <div class="button-group">
+                <button id="play-pause-btn">Pause</button>
+                <button id="trace-view-btn">Show Traces</button>
+            </div>
+            <div class="slider-group">
+                <label for="speed-slider">Speed: <span id="speed-value">1x</span></label>
+                <input type="range" id="speed-slider" min="0.25" max="100" step="0.25" value="1">
+            </div>
+        </section>
+
+        <section class="live-stats">
+            <h2>Live Stats</h2>
+            <div class="stat-item">
+                <span>Generation</span>
+                <strong id="generation-stat">1</strong>
+            </div>
+            <div class="stat-item">
+                <span>Total Population</span>
+                <strong id="population-stat">0</strong>
+            </div>
+            <div class="species-stats">
+                <div class="stat-item">
+                    <span><i class="species-icon alpha"></i> Alpha Species</span>
+                    <strong id="alpha-pop-stat">0</strong>
+                </div>
+                <div class="stat-item">
+                    <span><i class="species-icon beta"></i> Beta Species</span>
+                    <strong id="beta-pop-stat">0</strong>
+                </div>
+            </div>
+        </section>
+
+        <section class="gene-stats">
+            <h2>Average Genes</h2>
+            <div class="gene-chart">
+                <!-- Speed Row -->
+                <div class="gene-chart-row">
+                    <label>Speed</label>
+                    <div class="bar-pair">
+                        <div class="bar-wrapper" title="Alpha Average Speed"><div class="bar-fill alpha" id="alpha-speed-bar"></div></div>
+                        <div class="bar-wrapper" title="Beta Average Speed"><div class="bar-fill beta" id="beta-speed-bar"></div></div>
+                    </div>
+                    <div class="value-pair"><span id="alpha-speed-stat">0.00</span><span id="beta-speed-stat">0.00</span></div>
+                </div>
+                <!-- Aggression Row -->
+                <div class="gene-chart-row">
+                    <label>Aggression</label>
+                    <div class="bar-pair">
+                        <div class="bar-wrapper" title="Alpha Average Aggression"><div class="bar-fill alpha" id="alpha-aggression-bar"></div></div>
+                        <div class="bar-wrapper" title="Beta Average Aggression"><div class="bar-fill beta" id="beta-aggression-bar"></div></div>
+                    </div>
+                    <div class="value-pair"><span id="alpha-aggression-stat">0.00</span><span id="beta-aggression-stat">0.00</span></div>
+                </div>
+                 <!-- NEW: Perception Row -->
+                <div class="gene-chart-row">
+                    <label>Perception</label>
+                    <div class="bar-pair">
+                        <div class="bar-wrapper" title="Alpha Average Perception"><div class="bar-fill alpha" id="alpha-perception-bar"></div></div>
+                        <div class="bar-wrapper" title="Beta Average Perception"><div class="bar-fill beta" id="beta-perception-bar"></div></div>
+                    </div>
+                    <div class="value-pair"><span id="alpha-perception-stat">0.00</span><span id="beta-perception-stat">0.00</span></div>
+                </div>
+                 <!-- NEW: Defense Row -->
+                <div class="gene-chart-row">
+                    <label>Defense</label>
+                    <div class="bar-pair">
+                        <div class="bar-wrapper" title="Alpha Average Defense"><div class="bar-fill alpha" id="alpha-defense-bar"></div></div>
+                        <div class="bar-wrapper" title="Beta Average Defense"><div class="bar-fill beta" id="beta-defense-bar"></div></div>
+                    </div>
+                    <div class="value-pair"><span id="alpha-defense-stat">0.00</span><span id="beta-defense-stat">0.00</span></div>
+                </div>
+                <!-- Efficiency Row -->
+                <div class="gene-chart-row">
+                    <label>Efficiency</label>
+                    <div class="bar-pair">
+                        <div class="bar-wrapper" title="Alpha Average Efficiency"><div class="bar-fill alpha" id="alpha-efficiency-bar"></div></div>
+                        <div class="bar-wrapper" title="Beta Average Efficiency"><div class="bar-fill beta" id="beta-efficiency-bar"></div></div>
+                    </div>
+                    <div class="value-pair"><span id="alpha-efficiency-stat">0.00</span><span id="beta-efficiency-stat">0.00</span></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="genesis-settings">
+            <h2>Genesis Settings</h2>
+            <div class="setting-row">
+                <label for="initial-alpha-pop">Alpha Pop.</label>
+                <input type="number" id="initial-alpha-pop" value="25" min="0" max="200">
+            </div>
+            <div class="setting-row">
+                <label for="initial-beta-pop">Beta Pop.</label>
+                <input type="number" id="initial-beta-pop" value="25" min="0" max="200">
+            </div>
+            <div class="setting-row">
+                <label for="initial-manna">Manna Count</label>
+                <input type="number" id="initial-manna" value="150" min="0" max="500">
+            </div>
+            <div class="setting-row">
+                <label for="max-manna">Max Manna</label>
+                <input type="number" id="max-manna" value="200" min="0" max="1000">
+            </div>
+            <div class="setting-row">
+                <label for="manna-spawn-rate" title="Chance per frame to spawn new manna">Manna Spawn Rate</label>
+                <input type="number" id="manna-spawn-rate" value="0.05" step="0.01" min="0" max="1">
+            </div>
+            <div class="setting-row">
+                <label for="mutation-rate">Mutation Rate</label>
+                <input type="number" id="mutation-rate" value="0.1" step="0.05" min="0" max="1">
+            </div>
+            <div class="setting-row">
+                <label for="mutation-strength">Mutation Strength</label>
+                <input type="number" id="mutation-strength" value="0.1" step="0.05" min="0" max="1">
+            </div>
+            <div class="setting-row">
+                <label for="overpopulation-threshold" title="Number of neighbors that cause stress">Crowd Threshold</label>
+                <input type="number" id="overpopulation-threshold" value="5" min="1" max="20">
+            </div>
+            <div class="setting-row">
+                <label for="overpopulation-penalty" title="Energy lost per extra neighbor">Crowd Penalty</label>
+                <input type="number" id="overpopulation-penalty" value="0.05" step="0.01" min="0" max="1">
+            </div>
+            <button id="reset-btn" class="apply-btn">Apply & Restart</button>
+        </section>
+              
+        <section class="simulation-parameters">
+            <h2>Simulation Parameters</h2>
+            <div class="setting-group-header">Energy</div>
+            <div class="setting-row">
+                <label for="initial-energy" title="Starting energy for each new organism">Initial Energy</label>
+                <input type="number" id="initial-energy" value="100" min="10" max="500" step="10">
+            </div>
+            <div class="setting-row">
+                <label for="reproduce-threshold" title="Energy level required to be able to reproduce">Reproduce Threshold</label>
+                <input type="number" id="reproduce-threshold" value="160" min="50" max="1000" step="10">
+            </div>
+            <div class="setting-row">
+                <label for="reproduce-cost" title="Energy lost when an organism reproduces">Reproduce Cost</label>
+                <input type="number" id="reproduce-cost" value="90" min="10" max="500" step="10">
+            </div>
+            <div class="setting-row">
+                <label for="manna-energy" title="Energy gained from eating one piece of manna">Manna Energy</label>
+                <input type="number" id="manna-energy" value="25" min="5" max="200" step="5">
+            </div>
+            <div class="setting-row">
+                <label for="kill-energy" title="Energy gained from killing another organism">Kill Energy</label>
+                <input type="number" id="kill-energy" value="75" min="0" max="500" step="5">
+            </div>
+            <div class="setting-group-header">Combat</div>
+            <div class="setting-row">
+                <label for="attack-damage" title="Base damage dealt in an attack">Attack Damage</label>
+                <input type="number" id="attack-damage" value="40" min="0" max="200" step="5">
+            </div>
+            <div class="setting-row">
+                <label for="attack-cost" title="Energy cost to perform an attack">Attack Cost</label>
+                <input type="number" id="attack-cost" value="8" min="0" max="50" step="1">
+            </div>
+            <div class="setting-group-header">Territory Effects</div>
+            <div class="setting-row">
+                <label for="home-turf-speed-penalty" title="Speed reduction on home turf (0=none, 1=immobile)">Speed Penalty</label>
+                <input type="number" id="home-turf-speed-penalty" value="0.5" min="0" max="1" step="0.05">
+            </div>
+            <div class="setting-row">
+                <label for="home-turf-perception-penalty" title="Perception reduction on home turf (0=none, 1=blind)">Perception Penalty</label>
+                <input type="number" id="home-turf-perception-penalty" value="0.3" min="0" max="1" step="0.05">
+            </div>
+            <div class="setting-row">
+                <label for="home-turf-metabolism-penalty" title="Metabolism multiplier on home turf (1=none, 2=2x cost)">Metabolism Penalty</label>
+                <input type="number" id="home-turf-metabolism-penalty" value="1.5" min="1" max="5" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="enemy-turf-metabolism-benefit" title="Metabolism multiplier on enemy turf (1=none, 0.5=half cost)">Metabolism Benefit</label>
+                <input type="number" id="enemy-turf-metabolism-benefit" value="0.5" min="0.1" max="1" step="0.05">
+            </div>
+        </section>
+
+        <section class="advanced-parameters">
+            <h2>Advanced Parameters</h2>
+            <div class="setting-group-header">General</div>
+            <div class="setting-row">
+                <label for="generation-length">Generation Length (frames)</label>
+                <input type="number" id="generation-length" value="1200" min="100" max="5000" step="100">
+            </div>
+            <div class="setting-row">
+                <label for="organism-size">Organism Size</label>
+                <input type="number" id="organism-size" value="4" min="1" max="10" step="1">
+            </div>
+            <div class="setting-row">
+                <label for="path-history">Path History Length</label>
+                <input type="number" id="path-history" value="150" min="10" max="500" step="10">
+            </div>
+            <div class="setting-row">
+                <label for="low-energy-threshold">Low Energy Threshold</label>
+                <input type="number" id="low-energy-threshold" value="50" min="10" max="200" step="5">
+            </div>
+            <div class="setting-row">
+                <label for="flee-energy-threshold">Flee Energy Threshold</label>
+                <input type="number" id="flee-energy-threshold" value="60" min="10" max="200" step="5">
+            </div>
+            <div class="setting-row">
+                <label for="max-age">Max Age (frames)</label>
+                <input type="number" id="max-age" value="6000" min="500" max="20000" step="100">
+            </div>
+            <div class="setting-row">
+                <label for="senescence-start-factor">Senescence Start Factor</label>
+                <input type="number" id="senescence-start-factor" value="0.8" min="0.1" max="1" step="0.05">
+            </div>
+            <div class="setting-group-header">Environment</div>
+            <div class="setting-row">
+                <label for="patch-generation-interval">Patch Generation Interval</label>
+                <input type="number" id="patch-generation-interval" value="800" min="100" max="5000" step="100">
+            </div>
+            <div class="setting-row">
+                <label for="num-patches">Number of Patches</label>
+                <input type="number" id="num-patches" value="8" min="1" max="20" step="1">
+            </div>
+            <div class="setting-row">
+                <label for="patch-radius">Patch Radius</label>
+                <input type="number" id="patch-radius" value="80" min="10" max="200" step="5">
+            </div>
+            <div class="setting-row">
+                <label for="patch-distribution-std-dev">Patch Distribution Std Dev</label>
+                <input type="number" id="patch-distribution-std-dev" value="0.2" min="0.05" max="1" step="0.05">
+            </div>
+            <div class="setting-row">
+                <label for="environment-rotation-speed">Environment Rotation Speed</label>
+                <input type="number" id="environment-rotation-speed" value="0.0005" min="0" max="0.01" step="0.0001">
+            </div>
+            <div class="setting-row">
+                <label for="dark-color">Dark Color</label>
+                <input type="text" id="dark-color" value="#1E1E1E">
+            </div>
+            <div class="setting-row">
+                <label for="light-color">Light Color</label>
+                <input type="text" id="light-color" value="#FFFFFF">
+            </div>
+            <div class="setting-row">
+                <label for="trace-view-bg">Trace View BG</label>
+                <input type="text" id="trace-view-bg" value="#008080">
+            </div>
+            <div class="setting-group-header">Genes</div>
+            <div class="setting-row">
+                <label for="gene-speed-min">Speed (Min)</label>
+                <input type="number" id="gene-speed-min" value="0.5" min="0.1" max="2" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-speed-max">Speed (Max)</label>
+                <input type="number" id="gene-speed-max" value="4.0" min="2" max="10" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-aggression-min">Aggression (Min)</label>
+                <input type="number" id="gene-aggression-min" value="0" min="0" max="1" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-aggression-max">Aggression (Max)</label>
+                <input type="number" id="gene-aggression-max" value="2.0" min="1" max="5" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-perception-min">Perception (Min)</label>
+                <input type="number" id="gene-perception-min" value="40" min="10" max="100" step="5">
+            </div>
+            <div class="setting-row">
+                <label for="gene-perception-max">Perception (Max)</label>
+                <input type="number" id="gene-perception-max" value="120" min="100" max="300" step="10">
+            </div>
+            <div class="setting-row">
+                <label for="gene-perception-cost">Perception Cost</label>
+                <input type="number" id="gene-perception-cost" value="0.001" min="0" max="0.01" step="0.0005">
+            </div>
+            <div class="setting-row">
+                <label for="gene-defense-min">Defense (Min)</label>
+                <input type="number" id="gene-defense-min" value="0" min="0" max="1" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-defense-max">Defense (Max)</label>
+                <input type="number" id="gene-defense-max" value="2.0" min="1" max="5" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-defense-speed-penalty">Defense Speed Penalty</label>
+                <input type="number" id="gene-defense-speed-penalty" value="0.6" min="0" max="1" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-efficiency-min">Efficiency (Min)</label>
+                <input type="number" id="gene-efficiency-min" value="0.8" min="0.5" max="1.5" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="gene-efficiency-max">Efficiency (Max)</label>
+                <input type="number" id="gene-efficiency-max" value="2.0" min="1.5" max="3" step="0.1">
+            </div>
+            <div class="setting-group-header">Overpopulation</div>
+            <div class="setting-row">
+                <label for="overpopulation-stress-radius">Stress Radius</label>
+                <input type="number" id="overpopulation-stress-radius" value="20" min="5" max="50" step="1">
+            </div>
+            <div class="setting-group-header">Energy</div>
+            <div class="setting-row">
+                <label for="predator-efficiency">Predator Efficiency</label>
+                <input type="number" id="predator-efficiency" value="0.8" min="0.1" max="1" step="0.1">
+            </div>
+            <div class="setting-row">
+                <label for="metabolism">Metabolism</label>
+                <input type="number" id="metabolism" value="0.1" min="0.01" max="0.5" step="0.01">
+            </div>
+        </section>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

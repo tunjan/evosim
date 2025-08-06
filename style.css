@@ -1,0 +1,395 @@
+:root {
+    --bg-color: #f7f8fa;
+    --panel-bg: #ffffff;
+    --border-color: #e9e9eb;
+    --text-primary: #1a1a1a;
+    --text-secondary: #737373;
+    --brand-color: #3b82f6; /* A subtle blue for focus states */
+    --shadow-color: rgba(0, 0, 0, 0.05);
+
+    /* Black and white theme for species */
+        --species-alpha: #1a1a1a;
+    --species-beta: #cccccc; 
+    --manna-color: #22c55e; /* A vibrant green for manna */
+}
+
+/* --- BASE & TYPOGRAPHY --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    overflow: hidden;
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+#simulationCanvas {
+    flex-grow: 1;
+    height: 100%;
+}
+
+/* --- SIDEBAR & LAYOUT --- */
+.sidebar {
+    width: 320px;
+    background-color: var(--panel-bg);
+    border-right: 1px solid var(--border-color);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    padding: 24px;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 10;
+    overflow-y: auto;
+    box-shadow: 10px 0 30px -15px var(--shadow-color);
+}
+
+.sidebar.collapsed {
+    transform: translateX(-100%);
+}
+
+#sidebar-toggle {
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 56px;
+    background-color: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    border-left: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 24px;
+    font-weight: 300;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0 10px 10px 0;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 4px 0 10px -2px var(--shadow-color);
+}
+
+#sidebar-toggle:hover {
+    background-color: #fcfcfd;
+    color: var(--text-primary);
+}
+
+.sidebar.collapsed #sidebar-toggle {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+header {
+    margin-bottom: 32px;
+    flex-shrink: 0;
+}
+
+header h1 {
+    font-weight: 600;
+    font-size: 32px;
+    margin-bottom: 4px;
+}
+
+header p {
+    font-weight: 400;
+    font-size: 15px;
+    color: var(--text-secondary);
+}
+
+section {
+    margin-bottom: 32px;
+    flex-shrink: 0;
+}
+
+section h2 {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 20px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* --- UI COMPONENTS (BUTTONS, INPUTS, SLIDERS) --- */
+.button-group {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.button-group button {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.button-group button:hover {
+    background-color: #f0f1f3;
+    border-color: #d8d9db;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px var(--shadow-color);
+}
+
+.slider-group label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 5px;
+    background: #e9e9eb;
+    border-radius: 3px;
+    outline: none;
+    margin-top: 12px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--text-primary);
+    cursor: pointer;
+    border-radius: 50%;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}
+
+/* --- STATS & CHARTS --- */
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 15px;
+    margin-bottom: 12px;
+}
+
+.stat-item span {
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-item strong {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.species-stats {
+    margin-top: 16px;
+    padding-top: 16px;
+}
+
+.species-icon {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 4px;
+}
+
+.species-icon.alpha { background-color: var(--species-alpha); }
+.species-icon.beta { background-color: var(--species-beta); border: 1px solid #b0b0b0; }
+
+.gene-chart {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.gene-chart-row {
+    display: grid;
+    grid-template-columns: 80px 1fr 45px;
+    gap: 12px;
+    align-items: center;
+}
+
+.gene-chart-row label {
+    font-size: 14px;
+    color: var(--text-secondary);
+    text-align: left;
+    font-weight: 500;
+}
+
+.bar-pair {
+    display: flex;
+    gap: 8px;
+    height: 40px;
+}
+
+.bar-wrapper {
+    flex: 1;
+    height: 100%;
+    background-color: #f0f1f3;
+    border-radius: 4px;
+    display: flex;
+    align-items: flex-end;
+    overflow: hidden;
+}
+
+.bar-fill {
+    width: 100%;
+    height: 0%;
+    transition: height 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.bar-fill.alpha { background-color: var(--species-alpha); }
+.bar-fill.beta { background-color: var(--species-beta); }
+
+.value-pair {
+    display: flex;
+    flex-direction: column;
+    text-align: right;
+    font-size: 13px;
+    line-height: 1.5;
+    font-weight: 500;
+}
+
+.value-pair span:first-child { color: var(--text-primary); }
+.value-pair span:last-child { color: var(--text-secondary); }
+
+/* --- SETTINGS SECTIONS --- */
+.setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.setting-row label {
+    font-size: 15px;
+    color: var(--text-secondary);
+}
+
+.setting-row input[type="number"] {
+    width: 75px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px;
+    border-radius: 8px;
+    text-align: right;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.setting-row input[type="number"]::-webkit-outer-spin-button,
+.setting-row input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.setting-row input[type="number"]:focus {
+    outline: none;
+    border-color: var(--brand-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.setting-row input[type="text"] {
+    width: 75px;
+    background-color: var(--bg-color);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 8px;
+    border-radius: 8px;
+    text-align: right;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.setting-row input[type="text"]:focus {
+    outline: none;
+    border-color: var(--brand-color);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+.setting-group-header {
+    font-weight: 600;
+    font-size: 14px;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.apply-btn {
+    width: 100%;
+    margin-top: 16px;
+    padding: 12px;
+    border: none;
+    background-color: var(--text-primary);
+    color: var(--panel-bg);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 500;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.apply-btn:hover {
+    background-color: #333;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px var(--shadow-color);
+}
+
+/* --- SCROLLBAR --- */
+.sidebar::-webkit-scrollbar {
+    width: 12px;
+}
+.sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+.sidebar::-webkit-scrollbar-thumb {
+    background-color: #d8d9db;
+    border-radius: 6px;
+    border: 3px solid var(--panel-bg);
+}
+.sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: #c1c2c4;
+}
+
+/* --- RESPONSIVE DESIGN --- */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100vw;
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        border-right: none;
+        box-shadow: none;
+        transform: translateX(-100vw);
+    }
+    .sidebar.collapsed {
+        transform: translateX(-100vw);
+    }
+}
