@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const ui = {};
   const elementIds = [
       "simulationCanvas", "play-pause-btn", "reset-btn", "speed-slider", "speed-value", "sidebar",
-      "sidebar-toggle", "trace-view-btn", "low-graphics-btn", "hide-ui-btn", "status-badge", "status-text", "initial-alpha-pop", "initial-beta-pop", "initial-manna",
+      "sidebar-toggle", "trace-view-btn", "low-graphics-btn", "environment-mode-btn", "hide-ui-btn", "status-badge", "status-text", "initial-alpha-pop", "initial-beta-pop", "initial-manna",
       "max-manna", "manna-spawn-rate", "mutation-rate", "mutation-strength", "overpopulation-threshold",
       "overpopulation-penalty", "initial-energy", "reproduce-threshold", "reproduce-cost", "manna-energy",
       "kill-energy", "attack-damage", "attack-cost", "home-turf-speed-penalty", "home-turf-perception-penalty",
@@ -38,7 +38,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let quadtree;
   let isTraceView = false;
   let fertilePatches = [];
-  let environment = { angle: 0, zones: [] };
+  let environment = { angle: 0, zones: [], mode: 'chaotic' }; // 'chaotic' or 'classic'
   let lowGraphicsMode = false;
   
   // Population tracking for trends
@@ -400,86 +400,181 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   
   function getZoneForOrganism(organism) { 
-      let darkInfluence = 0;
-      let lightInfluence = 0;
-      
-      // Check each zone's influence
-      environment.zones.forEach(zone => {
-          const dx = organism.x - zone.x;
-          const dy = organism.y - zone.y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+      if (environment.mode === 'classic') {
+          // Classic symmetric line division
+          const centerX = ui.simulationCanvas.width / 2;
+          const centerY = ui.simulationCanvas.height / 2;
+          const orgAngle = Math.atan2(organism.y - centerY, organism.x - centerX);
+          let relativeAngle = (orgAngle - environment.angle) % (2 * Math.PI);
+          if (relativeAngle < 0) relativeAngle += 2 * Math.PI;
+          return relativeAngle < Math.PI ? "dark" : "light";
+      } else {
+          // Chaotic zones
+          let darkInfluence = 0;
+          let lightInfluence = 0;
           
-          if (distance < zone.radius) {
-              // Calculate influence based on distance (stronger near center)
-              const influence = (1 - distance / zone.radius) * zone.weight;
+          // Check each zone's influence
+          environment.zones.forEach(zone => {
+              const dx = organism.x - zone.x;
+              const dy = organism.y - zone.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
               
-              if (zone.type === "dark") {
-                  darkInfluence += influence;
-              } else {
-                  lightInfluence += influence;
+              if (distance < zone.radius) {
+                  // Calculate influence based on distance (stronger near center)
+                  const influence = (1 - distance / zone.radius) * zone.weight;
+                  
+                  if (zone.type === "dark") {
+                      darkInfluence += influence;
+                  } else {
+                      lightInfluence += influence;
+                  }
               }
+          });
+          
+          // Default to light if no zone influence
+          if (darkInfluence === 0 && lightInfluence === 0) {
+              return "light";
           }
-      });
-      
-      // Default to light if no zone influence
-      if (darkInfluence === 0 && lightInfluence === 0) {
-          return "light";
+          
+          return darkInfluence > lightInfluence ? "dark" : "light";
       }
-      
-      return darkInfluence > lightInfluence ? "dark" : "light";
   }
   function drawEnvironment() { 
+      const centerX = ui.simulationCanvas.width / 2;
+      const centerY = ui.simulationCanvas.height / 2;
+      const radius = Math.sqrt(centerX ** 2 + centerY ** 2);
+      
       ctx.save(); 
       
-      // Fill base color (light)
-      ctx.fillStyle = lowGraphicsMode ? config.environment.lightColor : '#f5f5f5';
-      ctx.fillRect(0, 0, ui.simulationCanvas.width, ui.simulationCanvas.height);
-      
-      // Draw chaotic zones
-      environment.zones.forEach(zone => {
-          ctx.save();
-          
+      if (environment.mode === 'classic') {
+          // Classic symmetric line division
           if (lowGraphicsMode) {
-              // Simple circles in low graphics mode
-              ctx.fillStyle = zone.type === "dark" ? 
-                  config.environment.darkColor : 
-                  config.environment.lightColor;
-              ctx.globalAlpha = 0.8;
+              // Simple flat colors
+              ctx.fillStyle = config.environment.darkColor;
+              ctx.beginPath(); 
+              ctx.moveTo(centerX, centerY); 
+              ctx.arc(centerX, centerY, radius, environment.angle, environment.angle + Math.PI); 
+              ctx.closePath(); 
+              ctx.fill(); 
+              
+              ctx.fillStyle = config.environment.lightColor;
+              ctx.beginPath(); 
+              ctx.moveTo(centerX, centerY); 
+              ctx.arc(centerX, centerY, radius, environment.angle + Math.PI, environment.angle + 2 * Math.PI); 
+              ctx.closePath(); 
+              ctx.fill(); 
+              
+              // Simple boundary line
+              ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+              ctx.lineWidth = 1;
               ctx.beginPath();
-              ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-              ctx.fill();
-          } else {
-              // Gradient zones in normal mode
-              const gradient = ctx.createRadialGradient(
-                  zone.x, zone.y, 0,
-                  zone.x, zone.y, zone.radius
+              ctx.moveTo(centerX, centerY);
+              ctx.lineTo(
+                  centerX + Math.cos(environment.angle) * radius,
+                  centerY + Math.sin(environment.angle) * radius
               );
+              ctx.moveTo(centerX, centerY);
+              ctx.lineTo(
+                  centerX + Math.cos(environment.angle + Math.PI) * radius,
+                  centerY + Math.sin(environment.angle + Math.PI) * radius
+              );
+              ctx.stroke();
+          } else {
+              // Dark zone with gradient
+              const darkGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+              darkGradient.addColorStop(0, '#2a2a2a');
+              darkGradient.addColorStop(1, config.environment.darkColor);
+              ctx.fillStyle = darkGradient;
+              ctx.beginPath(); 
+              ctx.moveTo(centerX, centerY); 
+              ctx.arc(centerX, centerY, radius, environment.angle, environment.angle + Math.PI); 
+              ctx.closePath(); 
+              ctx.fill(); 
               
-              if (zone.type === "dark") {
-                  gradient.addColorStop(0, '#2a2a2a');
-                  gradient.addColorStop(0.7, config.environment.darkColor);
-                  gradient.addColorStop(1, 'rgba(30, 30, 30, 0)');
-              } else {
-                  gradient.addColorStop(0, '#FFFFFF');
-                  gradient.addColorStop(0.7, '#f5f5f5');
-                  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-              }
+              // Light zone with gradient
+              const lightGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+              lightGradient.addColorStop(0, '#FFFFFF');
+              lightGradient.addColorStop(1, '#f5f5f5');
+              ctx.fillStyle = lightGradient;
+              ctx.beginPath(); 
+              ctx.moveTo(centerX, centerY); 
+              ctx.arc(centerX, centerY, radius, environment.angle + Math.PI, environment.angle + 2 * Math.PI); 
+              ctx.closePath(); 
+              ctx.fill(); 
               
-              ctx.fillStyle = gradient;
-              ctx.beginPath();
-              ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
-              ctx.fill();
-              
-              // Add subtle zone boundary
-              ctx.strokeStyle = zone.type === "dark" ? 
-                  'rgba(0, 0, 0, 0.1)' : 
-                  'rgba(255, 255, 255, 0.1)';
+              // Boundary line with glow
+              ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
               ctx.lineWidth = 2;
+              ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+              ctx.shadowBlur = 10;
+              ctx.beginPath();
+              ctx.moveTo(centerX, centerY);
+              ctx.lineTo(
+                  centerX + Math.cos(environment.angle) * radius,
+                  centerY + Math.sin(environment.angle) * radius
+              );
+              ctx.stroke();
+              
+              ctx.beginPath();
+              ctx.moveTo(centerX, centerY);
+              ctx.lineTo(
+                  centerX + Math.cos(environment.angle + Math.PI) * radius,
+                  centerY + Math.sin(environment.angle + Math.PI) * radius
+              );
               ctx.stroke();
           }
+      } else {
+          // Chaotic zones
+          // Fill base color (light)
+          ctx.fillStyle = lowGraphicsMode ? config.environment.lightColor : '#f5f5f5';
+          ctx.fillRect(0, 0, ui.simulationCanvas.width, ui.simulationCanvas.height);
           
-          ctx.restore();
-      });
+          // Draw chaotic zones
+          environment.zones.forEach(zone => {
+              ctx.save();
+              
+              if (lowGraphicsMode) {
+                  // Simple circles in low graphics mode
+                  ctx.fillStyle = zone.type === "dark" ? 
+                      config.environment.darkColor : 
+                      config.environment.lightColor;
+                  ctx.globalAlpha = 0.8;
+                  ctx.beginPath();
+                  ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+                  ctx.fill();
+              } else {
+                  // Gradient zones in normal mode
+                  const gradient = ctx.createRadialGradient(
+                      zone.x, zone.y, 0,
+                      zone.x, zone.y, zone.radius
+                  );
+                  
+                  if (zone.type === "dark") {
+                      gradient.addColorStop(0, '#2a2a2a');
+                      gradient.addColorStop(0.7, config.environment.darkColor);
+                      gradient.addColorStop(1, 'rgba(30, 30, 30, 0)');
+                  } else {
+                      gradient.addColorStop(0, '#FFFFFF');
+                      gradient.addColorStop(0.7, '#f5f5f5');
+                      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+                  }
+                  
+                  ctx.fillStyle = gradient;
+                  ctx.beginPath();
+                  ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+                  ctx.fill();
+                  
+                  // Add subtle zone boundary
+                  ctx.strokeStyle = zone.type === "dark" ? 
+                      'rgba(0, 0, 0, 0.1)' : 
+                      'rgba(255, 255, 255, 0.1)';
+                  ctx.lineWidth = 2;
+                  ctx.stroke();
+              }
+              
+              ctx.restore();
+          });
+      }
       
       ctx.restore(); 
   }
@@ -636,19 +731,24 @@ document.addEventListener("DOMContentLoaded", () => {
               if (frameCount % config.generationLengthInFrames === 0 && frameCount > 0) generation++;
               if (frameCount % config.patchGenerationInterval === 0) generateNewPatches();
               
-              // Update chaotic zones - each zone rotates independently
-              environment.zones.forEach(zone => {
-                  zone.angle = (zone.angle + zone.rotationSpeed) % (2 * Math.PI);
-                  // Slowly move zone centers for more chaos
-                  zone.x += Math.cos(zone.angle) * 0.1;
-                  zone.y += Math.sin(zone.angle) * 0.1;
-                  
-                  // Keep zones within bounds with wrapping
-                  if (zone.x < -zone.radius) zone.x = ui.simulationCanvas.width + zone.radius;
-                  if (zone.x > ui.simulationCanvas.width + zone.radius) zone.x = -zone.radius;
-                  if (zone.y < -zone.radius) zone.y = ui.simulationCanvas.height + zone.radius;
-                  if (zone.y > ui.simulationCanvas.height + zone.radius) zone.y = -zone.radius;
-              });
+              if (environment.mode === 'classic') {
+                  // Classic mode: rotate the angle
+                  environment.angle = (environment.angle + config.environment.rotationSpeed) % (2 * Math.PI);
+              } else {
+                  // Chaotic mode: update zones
+                  environment.zones.forEach(zone => {
+                      zone.angle = (zone.angle + zone.rotationSpeed) % (2 * Math.PI);
+                      // Slowly move zone centers for more chaos
+                      zone.x += Math.cos(zone.angle) * 0.1;
+                      zone.y += Math.sin(zone.angle) * 0.1;
+                      
+                      // Keep zones within bounds with wrapping
+                      if (zone.x < -zone.radius) zone.x = ui.simulationCanvas.width + zone.radius;
+                      if (zone.x > ui.simulationCanvas.width + zone.radius) zone.x = -zone.radius;
+                      if (zone.y < -zone.radius) zone.y = ui.simulationCanvas.height + zone.radius;
+                      if (zone.y > ui.simulationCanvas.height + zone.radius) zone.y = -zone.radius;
+                  });
+              }
               if (Math.random() < config.mannaSpawnRate) spawnManna();
               quadtree.clear();
               organisms.forEach((org) => quadtree.insert(org));
@@ -800,6 +900,16 @@ document.addEventListener("DOMContentLoaded", () => {
       ui.hideUiBtn.setAttribute('title', isHidden ? 'Show all UI elements (H)' : 'Hide all UI elements (H)');
   }
   
+  // Environment mode toggle
+  function toggleEnvironmentMode() {
+      environment.mode = environment.mode === 'classic' ? 'chaotic' : 'classic';
+      ui.environmentModeBtn.textContent = environment.mode === 'classic' ? 'Classic Division' : 'Chaotic Zones';
+      
+      if (environment.mode === 'chaotic') {
+          generateChaoticZones();
+      }
+  }
+  
   // Speed adjustment
   function adjustSpeed(delta) {
       gameSpeed = Math.max(0.25, Math.min(100, gameSpeed + delta));
@@ -832,6 +942,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   ui.traceViewBtn.addEventListener("click", toggleTraceView);
   ui.lowGraphicsBtn.addEventListener("click", toggleLowGraphics);
+  ui.environmentModeBtn.addEventListener("click", toggleEnvironmentMode);
   ui.hideUiBtn.addEventListener("click", toggleUI);
   
   const resizeCanvas = () => { 
@@ -883,6 +994,10 @@ document.addEventListener("DOMContentLoaded", () => {
           case 'h':
               e.preventDefault();
               toggleUI();
+              break;
+          case 'e':
+              e.preventDefault();
+              toggleEnvironmentMode();
               break;
       }
   });
