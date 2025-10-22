@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const ui = {};
   const elementIds = [
       "simulationCanvas", "play-pause-btn", "reset-btn", "speed-slider", "speed-value", "sidebar",
-      "sidebar-toggle", "trace-view-btn", "initial-alpha-pop", "initial-beta-pop", "initial-manna",
+      "sidebar-toggle", "trace-view-btn", "status-badge", "status-text", "initial-alpha-pop", "initial-beta-pop", "initial-manna",
       "max-manna", "manna-spawn-rate", "mutation-rate", "mutation-strength", "overpopulation-threshold",
       "overpopulation-penalty", "initial-energy", "reproduce-threshold", "reproduce-cost", "manna-energy",
       "kill-energy", "attack-damage", "attack-cost", "home-turf-speed-penalty", "home-turf-perception-penalty",
@@ -39,6 +39,13 @@ document.addEventListener("DOMContentLoaded", () => {
   let isTraceView = false;
   let fertilePatches = [];
   let environment = { angle: 0 };
+  
+  // Population tracking for trends
+  let populationHistory = {
+    alpha: [],
+    beta: [],
+    maxHistory: 30
+  };
 
   
   const config = {
@@ -102,8 +109,96 @@ document.addEventListener("DOMContentLoaded", () => {
           this.defense = genes.defense ?? 0.1;
       }
 
-      draw() { ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(this.direction + Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, -config.organismSize * 1.5); ctx.lineTo(-config.organismSize, config.organismSize); ctx.lineTo(config.organismSize, config.organismSize); ctx.closePath(); ctx.fillStyle = this.species === "alpha" ? config.environment.darkColor : config.environment.lightColor; ctx.fill(); ctx.strokeStyle = this.isOnHomeTurf ? "#FF6347" : "#CCCCCC"; ctx.lineWidth = this.isOnHomeTurf ? 1.5 : 1; ctx.stroke(); if (this.energy > config.energy.reproduceThreshold) { ctx.fillStyle = `rgba(100, 255, 100, ${ 0.1 + Math.sin(frameCount * 0.1) * 0.1 })`; ctx.fill(); } ctx.restore(); }
-      drawTrace() { if (this.path.length < 2) return; ctx.beginPath(); ctx.moveTo(this.path[0].x, this.path[0].y); for (let i = 1; i < this.path.length; i++) { ctx.lineTo(this.path[i].x, this.path[i].y); } ctx.strokeStyle = this.species === "alpha" ? config.environment.darkColor : config.environment.lightColor; ctx.lineWidth = 3; ctx.stroke(); }
+      draw() { 
+          ctx.save(); 
+          ctx.translate(this.x, this.y); 
+          ctx.rotate(this.direction + Math.PI / 2); 
+          
+          // Energy glow effect
+          if (this.energy > config.energy.reproduceThreshold) {
+              const glowIntensity = 0.3 + Math.sin(frameCount * 0.15) * 0.2;
+              const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, config.organismSize * 3);
+              gradient.addColorStop(0, `rgba(16, 185, 129, ${glowIntensity})`);
+              gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+              ctx.fillStyle = gradient;
+              ctx.beginPath();
+              ctx.arc(0, 0, config.organismSize * 3, 0, Math.PI * 2);
+              ctx.fill();
+          }
+          
+          // Low energy warning glow
+          if (this.energy < config.lowEnergyThreshold) {
+              const warningIntensity = 0.2 + Math.sin(frameCount * 0.2) * 0.15;
+              const warningGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, config.organismSize * 2.5);
+              warningGradient.addColorStop(0, `rgba(239, 68, 68, ${warningIntensity})`);
+              warningGradient.addColorStop(1, 'rgba(239, 68, 68, 0)');
+              ctx.fillStyle = warningGradient;
+              ctx.beginPath();
+              ctx.arc(0, 0, config.organismSize * 2.5, 0, Math.PI * 2);
+              ctx.fill();
+          }
+          
+          // Main organism body with gradient
+          ctx.beginPath(); 
+          ctx.moveTo(0, -config.organismSize * 1.5); 
+          ctx.lineTo(-config.organismSize, config.organismSize); 
+          ctx.lineTo(config.organismSize, config.organismSize); 
+          ctx.closePath(); 
+          
+          const bodyGradient = ctx.createLinearGradient(0, -config.organismSize * 1.5, 0, config.organismSize);
+          if (this.species === "alpha") {
+              bodyGradient.addColorStop(0, config.environment.darkColor);
+              bodyGradient.addColorStop(1, '#404040');
+          } else {
+              bodyGradient.addColorStop(0, '#FFFFFF');
+              bodyGradient.addColorStop(1, config.environment.lightColor);
+          }
+          ctx.fillStyle = bodyGradient;
+          ctx.fill(); 
+          
+          // Outline with status coloring
+          if (this.isOnHomeTurf) {
+              ctx.strokeStyle = "#FF6347";
+              ctx.lineWidth = 2;
+              ctx.shadowColor = "#FF6347";
+              ctx.shadowBlur = 6;
+          } else {
+              ctx.strokeStyle = this.species === "alpha" ? "#666" : "#999";
+              ctx.lineWidth = 1.5;
+              ctx.shadowBlur = 0;
+          }
+          ctx.stroke(); 
+          
+          // Direction indicator (eye)
+          ctx.fillStyle = this.species === "alpha" ? "#FFFFFF" : "#000000";
+          ctx.beginPath();
+          ctx.arc(0, -config.organismSize * 0.5, config.organismSize * 0.3, 0, Math.PI * 2);
+          ctx.fill();
+          
+          ctx.restore(); 
+      }
+      drawTrace() { 
+          if (this.path.length < 2) return; 
+          
+          // Draw path with gradient fade effect
+          for (let i = 1; i < this.path.length; i++) {
+              const alpha = i / this.path.length;
+              const width = 1 + alpha * 2;
+              
+              ctx.beginPath(); 
+              ctx.moveTo(this.path[i-1].x, this.path[i-1].y); 
+              ctx.lineTo(this.path[i].x, this.path[i].y); 
+              
+              if (this.species === "alpha") {
+                  ctx.strokeStyle = `rgba(26, 26, 26, ${alpha * 0.8})`;
+              } else {
+                  ctx.strokeStyle = `rgba(204, 204, 204, ${alpha * 0.9})`;
+              }
+              ctx.lineWidth = width;
+              ctx.lineCap = 'round';
+              ctx.stroke(); 
+          }
+      }
 
       update(quadtree) {
           this.age++;
@@ -214,11 +309,106 @@ document.addEventListener("DOMContentLoaded", () => {
       }
   }
 
-  class Manna { constructor(x, y) { this.x = x; this.y = y; this.energy = 1; } draw() { const size = 3; ctx.save(); ctx.translate(this.x, this.y); ctx.rotate(Math.PI / 4); ctx.fillStyle = "#4CAF50"; ctx.fillRect(-size, -size, size * 2, size * 2); ctx.restore(); } }
+  class Manna { 
+      constructor(x, y) { 
+          this.x = x; 
+          this.y = y; 
+          this.energy = 1; 
+          this.pulseOffset = Math.random() * Math.PI * 2;
+      } 
+      
+      draw() { 
+          const size = 3; 
+          const pulse = Math.sin(frameCount * 0.08 + this.pulseOffset) * 0.3 + 1;
+          
+          ctx.save(); 
+          ctx.translate(this.x, this.y); 
+          
+          // Glow effect
+          const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 3 * pulse);
+          glowGradient.addColorStop(0, 'rgba(34, 197, 94, 0.4)');
+          glowGradient.addColorStop(0.5, 'rgba(34, 197, 94, 0.2)');
+          glowGradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
+          ctx.fillStyle = glowGradient;
+          ctx.beginPath();
+          ctx.arc(0, 0, size * 3 * pulse, 0, Math.PI * 2);
+          ctx.fill();
+          
+          // Main manna diamond shape
+          ctx.rotate(Math.PI / 4 + frameCount * 0.02); 
+          
+          const gradient = ctx.createLinearGradient(-size, -size, size, size);
+          gradient.addColorStop(0, '#10b981');
+          gradient.addColorStop(0.5, '#22c55e');
+          gradient.addColorStop(1, '#34d399');
+          
+          ctx.fillStyle = gradient;
+          ctx.shadowColor = '#22c55e';
+          ctx.shadowBlur = 8;
+          ctx.fillRect(-size * pulse, -size * pulse, size * 2 * pulse, size * 2 * pulse); 
+          
+          // Inner highlight
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+          ctx.fillRect(-size * 0.5 * pulse, -size * 0.5 * pulse, size * pulse, size * pulse);
+          
+          ctx.restore(); 
+      } 
+  }
 
   
   function getZoneForOrganism(organism) { const centerX = ui.simulationCanvas.width / 2; const centerY = ui.simulationCanvas.height / 2; const orgAngle = Math.atan2(organism.y - centerY, organism.x - centerX); let relativeAngle = (orgAngle - environment.angle) % (2 * Math.PI); if (relativeAngle < 0) relativeAngle += 2 * Math.PI; return relativeAngle < Math.PI ? "dark" : "light"; }
-  function drawEnvironment() { const centerX = ui.simulationCanvas.width / 2; const centerY = ui.simulationCanvas.height / 2; const radius = Math.sqrt(centerX ** 2 + centerY ** 2); ctx.save(); ctx.fillStyle = config.environment.darkColor; ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.arc(centerX, centerY, radius, environment.angle, environment.angle + Math.PI); ctx.closePath(); ctx.fill(); ctx.fillStyle = config.environment.lightColor; ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.arc(centerX, centerY, radius, environment.angle + Math.PI, environment.angle + 2 * Math.PI); ctx.closePath(); ctx.fill(); ctx.restore(); }
+  function drawEnvironment() { 
+      const centerX = ui.simulationCanvas.width / 2; 
+      const centerY = ui.simulationCanvas.height / 2; 
+      const radius = Math.sqrt(centerX ** 2 + centerY ** 2); 
+      
+      ctx.save(); 
+      
+      // Dark zone with subtle gradient
+      const darkGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+      darkGradient.addColorStop(0, '#2a2a2a');
+      darkGradient.addColorStop(1, config.environment.darkColor);
+      ctx.fillStyle = darkGradient;
+      ctx.beginPath(); 
+      ctx.moveTo(centerX, centerY); 
+      ctx.arc(centerX, centerY, radius, environment.angle, environment.angle + Math.PI); 
+      ctx.closePath(); 
+      ctx.fill(); 
+      
+      // Light zone with subtle gradient
+      const lightGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
+      lightGradient.addColorStop(0, '#FFFFFF');
+      lightGradient.addColorStop(1, '#f5f5f5');
+      ctx.fillStyle = lightGradient;
+      ctx.beginPath(); 
+      ctx.moveTo(centerX, centerY); 
+      ctx.arc(centerX, centerY, radius, environment.angle + Math.PI, environment.angle + 2 * Math.PI); 
+      ctx.closePath(); 
+      ctx.fill(); 
+      
+      // Boundary line with glow
+      ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(
+          centerX + Math.cos(environment.angle) * radius,
+          centerY + Math.sin(environment.angle) * radius
+      );
+      ctx.stroke();
+      
+      ctx.beginPath();
+      ctx.moveTo(centerX, centerY);
+      ctx.lineTo(
+          centerX + Math.cos(environment.angle + Math.PI) * radius,
+          centerY + Math.sin(environment.angle + Math.PI) * radius
+      );
+      ctx.stroke();
+      
+      ctx.restore(); 
+  }
   
   function updateConfigFromUI() {
       config.initialAlphaPop = parseInt(ui.initialAlphaPop.value);
@@ -349,7 +539,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function init() {
       updateConfigFromUI();
-      ui.simulationCanvas.width = window.innerWidth - (ui.sidebar.classList.contains("collapsed") ? 0 : 300);
+      ui.simulationCanvas.width = window.innerWidth;
       ui.simulationCanvas.height = window.innerHeight;
       const boundary = new Rectangle(ui.simulationCanvas.width / 2, ui.simulationCanvas.height / 2, ui.simulationCanvas.width / 2, ui.simulationCanvas.height / 2);
       quadtree = new Quadtree(boundary, 4);
@@ -384,15 +574,60 @@ document.addEventListener("DOMContentLoaded", () => {
               manna = remainingManna;
           }
           if (isTraceView) {
-              ctx.fillStyle = config.environment.traceViewBg;
+              // Trace view with gradient background
+              const traceGradient = ctx.createRadialGradient(
+                  ui.simulationCanvas.width / 2, 
+                  ui.simulationCanvas.height / 2, 
+                  0,
+                  ui.simulationCanvas.width / 2, 
+                  ui.simulationCanvas.height / 2, 
+                  Math.max(ui.simulationCanvas.width, ui.simulationCanvas.height) / 2
+              );
+              traceGradient.addColorStop(0, '#006666');
+              traceGradient.addColorStop(1, config.environment.traceViewBg);
+              ctx.fillStyle = traceGradient;
               ctx.fillRect(0, 0, ui.simulationCanvas.width, ui.simulationCanvas.height);
               organisms.forEach((org) => org.drawTrace());
+              
+              // Draw current organism positions as dots
+              organisms.forEach((org) => {
+                  ctx.fillStyle = org.species === "alpha" ? 
+                      'rgba(26, 26, 26, 0.9)' : 
+                      'rgba(255, 255, 255, 0.9)';
+                  ctx.beginPath();
+                  ctx.arc(org.x, org.y, config.organismSize * 0.5, 0, Math.PI * 2);
+                  ctx.fill();
+              });
           } else {
               ctx.clearRect(0, 0, ui.simulationCanvas.width, ui.simulationCanvas.height);
               drawEnvironment();
-              ctx.save(); ctx.globalAlpha = 0.08; ctx.fillStyle = "#4CAF50";
-              fertilePatches.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, p.radius, 0, 2 * Math.PI); ctx.fill(); });
+              
+              // Enhanced fertile patches with gradient and animation
+              ctx.save(); 
+              fertilePatches.forEach((p, index) => { 
+                  const pulsePhase = (frameCount * 0.01 + index * 0.3) % (Math.PI * 2);
+                  const pulse = Math.sin(pulsePhase) * 0.1 + 0.9;
+                  
+                  const patchGradient = ctx.createRadialGradient(
+                      p.x, p.y, 0,
+                      p.x, p.y, p.radius * pulse
+                  );
+                  patchGradient.addColorStop(0, 'rgba(34, 197, 94, 0.15)');
+                  patchGradient.addColorStop(0.7, 'rgba(34, 197, 94, 0.08)');
+                  patchGradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
+                  
+                  ctx.fillStyle = patchGradient;
+                  ctx.beginPath(); 
+                  ctx.arc(p.x, p.y, p.radius * pulse, 0, 2 * Math.PI); 
+                  ctx.fill(); 
+                  
+                  // Patch outline
+                  ctx.strokeStyle = 'rgba(34, 197, 94, 0.2)';
+                  ctx.lineWidth = 1;
+                  ctx.stroke();
+              });
               ctx.restore();
+              
               manna.forEach((m) => m.draw());
               organisms.forEach((org) => org.draw());
           }
@@ -407,6 +642,15 @@ document.addEventListener("DOMContentLoaded", () => {
       organisms.forEach((org) => { const species = org.species; if (species === "alpha") alphaPop++; else betaPop++; for (const gene in avgGenes[species]) avgGenes[species][gene] += org[gene]; });
       if (alphaPop > 0) Object.keys(avgGenes.alpha).forEach((k) => (avgGenes.alpha[k] /= alphaPop));
       if (betaPop > 0) Object.keys(avgGenes.beta).forEach((k) => (avgGenes.beta[k] /= betaPop));
+      
+      // Track population trends
+      populationHistory.alpha.push(alphaPop);
+      populationHistory.beta.push(betaPop);
+      if (populationHistory.alpha.length > populationHistory.maxHistory) {
+          populationHistory.alpha.shift();
+          populationHistory.beta.shift();
+      }
+      
       ui.generationStat.textContent = generation; ui.populationStat.textContent = organisms.length;
       ui.alphaPopStat.textContent = alphaPop; ui.betaPopStat.textContent = betaPop;
       ui.alphaSpeedStat.textContent = avgGenes.alpha.speed.toFixed(2); ui.betaSpeedStat.textContent = avgGenes.beta.speed.toFixed(2);
@@ -427,13 +671,106 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   
-  ui.playPauseBtn.addEventListener("click", () => { isRunning = !isRunning; ui.playPauseBtn.textContent = isRunning ? "Pause" : "Play"; });
-  ui.resetBtn.addEventListener("click", init);
-  ui.speedSlider.addEventListener("input", (e) => { gameSpeed = parseFloat(e.target.value); ui.speedValue.textContent = `${gameSpeed}x`; });
-  ui.traceViewBtn.addEventListener("click", () => { isTraceView = !isTraceView; ui.traceViewBtn.textContent = isTraceView ? "Show Organisms" : "Show Traces"; });
-  const resizeAndInit = () => { ui.simulationCanvas.width = window.innerWidth - (ui.sidebar.classList.contains("collapsed") ? 0 : 300); ui.simulationCanvas.height = window.innerHeight; init(); };
-  ui.sidebarToggle.addEventListener("click", () => { ui.sidebar.classList.toggle("collapsed"); setTimeout(resizeAndInit, 300); });
+  // Update status badge
+  function updateStatusBadge() {
+      if (isRunning) {
+          ui.statusText.textContent = `Running (${gameSpeed}x)`;
+          ui.statusBadge.classList.remove('paused');
+      } else {
+          ui.statusText.textContent = 'Paused';
+          ui.statusBadge.classList.add('paused');
+      }
+  }
+  
+  // Play/Pause toggle
+  function togglePlayPause() {
+      isRunning = !isRunning;
+      ui.playPauseBtn.textContent = isRunning ? "Pause" : "Play";
+      updateStatusBadge();
+  }
+  
+  // Trace view toggle
+  function toggleTraceView() {
+      isTraceView = !isTraceView;
+      ui.traceViewBtn.textContent = isTraceView ? "Show Organisms" : "Show Traces";
+  }
+  
+  // Speed adjustment
+  function adjustSpeed(delta) {
+      gameSpeed = Math.max(0.25, Math.min(100, gameSpeed + delta));
+      ui.speedSlider.value = gameSpeed;
+      ui.speedValue.textContent = `${gameSpeed}x`;
+      if (isRunning) updateStatusBadge();
+  }
+  
+  // Reset with loading state
+  function resetSimulation() {
+      ui.resetBtn.classList.add('loading');
+      ui.resetBtn.textContent = 'Restarting...';
+      ui.resetBtn.disabled = true;
+      
+      setTimeout(() => {
+          init();
+          ui.resetBtn.classList.remove('loading');
+          ui.resetBtn.textContent = 'Apply & Restart';
+          ui.resetBtn.disabled = false;
+      }, 100);
+  }
+  
+  // Event listeners
+  ui.playPauseBtn.addEventListener("click", togglePlayPause);
+  ui.resetBtn.addEventListener("click", resetSimulation);
+  ui.speedSlider.addEventListener("input", (e) => { 
+      gameSpeed = parseFloat(e.target.value); 
+      ui.speedValue.textContent = `${gameSpeed}x`; 
+      if (isRunning) updateStatusBadge();
+  });
+  ui.traceViewBtn.addEventListener("click", toggleTraceView);
+  
+  const resizeCanvas = () => { 
+      ui.simulationCanvas.width = window.innerWidth; 
+      ui.simulationCanvas.height = window.innerHeight; 
+  };
+  
+  const resizeAndInit = () => { 
+      resizeCanvas();
+      init(); 
+  };
+  
+  ui.sidebarToggle.addEventListener("click", () => { 
+      ui.sidebar.classList.toggle("collapsed");
+  });
+  
   window.addEventListener("resize", resizeAndInit);
+  
+  // Keyboard shortcuts
+  document.addEventListener("keydown", (e) => {
+      // Ignore if typing in input fields
+      if (e.target.tagName === 'INPUT') return;
+      
+      switch(e.key.toLowerCase()) {
+          case ' ':
+              e.preventDefault();
+              togglePlayPause();
+              break;
+          case 't':
+              e.preventDefault();
+              toggleTraceView();
+              break;
+          case 'r':
+              e.preventDefault();
+              resetSimulation();
+              break;
+          case '[':
+              e.preventDefault();
+              adjustSpeed(-0.25);
+              break;
+          case ']':
+              e.preventDefault();
+              adjustSpeed(0.25);
+              break;
+      }
+  });
 
   
   setUIFromConfig();

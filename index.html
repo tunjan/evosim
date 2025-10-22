@@ -14,13 +14,45 @@
 
     <canvas id="simulationCanvas"></canvas>
 
+    <!-- Status Badge -->
+    <div id="status-badge" class="status-badge show">
+        <span class="indicator"></span>
+        <span id="status-text">Running</span>
+    </div>
+
+    <!-- Keyboard Shortcuts Hint -->
+    <div class="keyboard-hint">
+        <div class="hint-row">
+            <span><kbd>Space</kbd> Play/Pause</span>
+            <span><kbd>T</kbd> Toggle Traces</span>
+        </div>
+        <div class="hint-row">
+            <span><kbd>R</kbd> Reset</span>
+            <span><kbd>[</kbd> / <kbd>]</kbd> Speed</span>
+        </div>
+    </div>
+
+    <!-- Info Button with Tooltip -->
+    <div class="info-container">
+        <button class="info-button" aria-label="Simulation Information">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+        </button>
+        <div class="info-tooltip">
+            <h3>How Vellum Works</h3>
+            <p><strong>Two Species:</strong> Black (Alpha) and White (Beta) organisms compete for survival in a rotating environment.</p>
+            <p><strong>Environment:</strong> The world is split into dark and light zones that slowly rotate. Organisms suffer penalties in their "home turf" (Alpha in light, Beta in dark).</p>
+            <p><strong>Resources:</strong> Green manna spawns in fertile patches. Organisms must eat to survive and reproduce.</p>
+            <p><strong>Evolution:</strong> Each organism has genes for speed, aggression, perception, defense, and efficiency. Successful traits pass to offspring with mutations.</p>
+            <p><strong>Behavior:</strong> Organisms hunt each other or gather manna based on their aggression and energy levels. Watch how strategies evolve over generations!</p>
+        </div>
+    </div>
+
     <div id="sidebar" class="sidebar">
         <button id="sidebar-toggle" title="Toggle Panel">›</button>
-
-        <header>
-            <h1>Vellum</h1>
-            <p>An elegant simulation of life's quiet chaos.</p>
-        </header>
 
         <section class="controls">
             <h2>Controls</h2>
