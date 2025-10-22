@@ -27,10 +27,22 @@
             <span><kbd>T</kbd> Toggle Traces</span>
         </div>
         <div class="hint-row">
+            <span><kbd>G</kbd> Low Graphics</span>
             <span><kbd>R</kbd> Reset</span>
+        </div>
+        <div class="hint-row">
             <span><kbd>[</kbd> / <kbd>]</kbd> Speed</span>
+            <span><kbd>H</kbd> Hide UI</span>
         </div>
     </div>
+
+    <!-- Hide UI Button -->
+    <button id="hide-ui-btn" class="hide-ui-button" aria-label="Hide UI" title="Hide all UI elements (H)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+    </button>
 
     <!-- Info Button with Tooltip -->
     <div class="info-container">
@@ -59,6 +71,9 @@
             <div class="button-group">
                 <button id="play-pause-btn">Pause</button>
                 <button id="trace-view-btn">Show Traces</button>
+            </div>
+            <div class="button-group">
+                <button id="low-graphics-btn" title="Toggle low-graphics mode for better performance">Low Graphics: Off</button>
             </div>
             <div class="slider-group">
                 <label for="speed-slider">Speed: <span id="speed-value">1x</span></label>

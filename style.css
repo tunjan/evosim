@@ -506,7 +506,7 @@ input[type="range"]::-webkit-slider-thumb:active {
     z-index: 100;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s ease;
+    transition: opacity 0.4s ease;
 }
 
 .status-badge.show {
@@ -531,6 +531,58 @@ input[type="range"]::-webkit-slider-thumb:active {
     50% { opacity: 0.5; }
 }
 
+/* --- HIDE UI BUTTON --- */
+.hide-ui-button {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1),
+                0 2px 6px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    z-index: 100;
+}
+
+.hide-ui-button:hover {
+    color: var(--text-primary);
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15),
+                0 3px 8px rgba(0, 0, 0, 0.08);
+}
+
+.hide-ui-button:active {
+    transform: scale(0.98);
+}
+
+body.ui-hidden .sidebar,
+body.ui-hidden .status-badge,
+body.ui-hidden .keyboard-hint,
+body.ui-hidden .info-container {
+    opacity: 0;
+    pointer-events: none;
+}
+
+body.ui-hidden .hide-ui-button {
+    background: rgba(26, 26, 26, 0.95);
+    color: #ffffff;
+}
+
+body.ui-hidden .hide-ui-button svg {
+    transform: scale(0.9);
+}
+
 /* --- INFO BUTTON & TOOLTIP --- */
 .info-container {
     position: fixed;
@@ -538,6 +590,7 @@ input[type="range"]::-webkit-slider-thumb:active {
     left: 50%;
     transform: translateX(-50%);
     z-index: 100;
+    transition: opacity 0.3s ease;
 }
 
 .info-button {
@@ -661,6 +714,7 @@ input[type="range"]::-webkit-slider-thumb:active {
     opacity: 0;
     transform: translateY(10px);
     animation: slideUpFade 0.5s ease 1s forwards;
+    transition: opacity 0.4s ease;
 }
 
 @keyframes slideUpFade {

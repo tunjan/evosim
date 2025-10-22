@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const ui = {};
   const elementIds = [
       "simulationCanvas", "play-pause-btn", "reset-btn", "speed-slider", "speed-value", "sidebar",
-      "sidebar-toggle", "trace-view-btn", "status-badge", "status-text", "initial-alpha-pop", "initial-beta-pop", "initial-manna",
+      "sidebar-toggle", "trace-view-btn", "low-graphics-btn", "hide-ui-btn", "status-badge", "status-text", "initial-alpha-pop", "initial-beta-pop", "initial-manna",
       "max-manna", "manna-spawn-rate", "mutation-rate", "mutation-strength", "overpopulation-threshold",
       "overpopulation-penalty", "initial-energy", "reproduce-threshold", "reproduce-cost", "manna-energy",
       "kill-energy", "attack-damage", "attack-cost", "home-turf-speed-penalty", "home-turf-perception-penalty",
@@ -38,7 +38,8 @@ document.addEventListener("DOMContentLoaded", () => {
   let quadtree;
   let isTraceView = false;
   let fertilePatches = [];
-  let environment = { angle: 0 };
+  let environment = { angle: 0, zones: [] };
+  let lowGraphicsMode = false;
   
   // Population tracking for trends
   let populationHistory = {
@@ -114,66 +115,76 @@ document.addEventListener("DOMContentLoaded", () => {
           ctx.translate(this.x, this.y); 
           ctx.rotate(this.direction + Math.PI / 2); 
           
-          // Energy glow effect
-          if (this.energy > config.energy.reproduceThreshold) {
-              const glowIntensity = 0.3 + Math.sin(frameCount * 0.15) * 0.2;
-              const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, config.organismSize * 3);
-              gradient.addColorStop(0, `rgba(16, 185, 129, ${glowIntensity})`);
-              gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
-              ctx.fillStyle = gradient;
-              ctx.beginPath();
-              ctx.arc(0, 0, config.organismSize * 3, 0, Math.PI * 2);
-              ctx.fill();
+          if (!lowGraphicsMode) {
+              // Energy glow effect
+              if (this.energy > config.energy.reproduceThreshold) {
+                  const glowIntensity = 0.3 + Math.sin(frameCount * 0.15) * 0.2;
+                  const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, config.organismSize * 3);
+                  gradient.addColorStop(0, `rgba(16, 185, 129, ${glowIntensity})`);
+                  gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+                  ctx.fillStyle = gradient;
+                  ctx.beginPath();
+                  ctx.arc(0, 0, config.organismSize * 3, 0, Math.PI * 2);
+                  ctx.fill();
+              }
+              
+              // Low energy warning glow
+              if (this.energy < config.lowEnergyThreshold) {
+                  const warningIntensity = 0.2 + Math.sin(frameCount * 0.2) * 0.15;
+                  const warningGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, config.organismSize * 2.5);
+                  warningGradient.addColorStop(0, `rgba(239, 68, 68, ${warningIntensity})`);
+                  warningGradient.addColorStop(1, 'rgba(239, 68, 68, 0)');
+                  ctx.fillStyle = warningGradient;
+                  ctx.beginPath();
+                  ctx.arc(0, 0, config.organismSize * 2.5, 0, Math.PI * 2);
+                  ctx.fill();
+              }
           }
           
-          // Low energy warning glow
-          if (this.energy < config.lowEnergyThreshold) {
-              const warningIntensity = 0.2 + Math.sin(frameCount * 0.2) * 0.15;
-              const warningGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, config.organismSize * 2.5);
-              warningGradient.addColorStop(0, `rgba(239, 68, 68, ${warningIntensity})`);
-              warningGradient.addColorStop(1, 'rgba(239, 68, 68, 0)');
-              ctx.fillStyle = warningGradient;
-              ctx.beginPath();
-              ctx.arc(0, 0, config.organismSize * 2.5, 0, Math.PI * 2);
-              ctx.fill();
-          }
-          
-          // Main organism body with gradient
+          // Main organism body
           ctx.beginPath(); 
           ctx.moveTo(0, -config.organismSize * 1.5); 
           ctx.lineTo(-config.organismSize, config.organismSize); 
           ctx.lineTo(config.organismSize, config.organismSize); 
           ctx.closePath(); 
           
-          const bodyGradient = ctx.createLinearGradient(0, -config.organismSize * 1.5, 0, config.organismSize);
-          if (this.species === "alpha") {
-              bodyGradient.addColorStop(0, config.environment.darkColor);
-              bodyGradient.addColorStop(1, '#404040');
+          if (lowGraphicsMode) {
+              // Simple flat colors in low graphics mode
+              ctx.fillStyle = this.species === "alpha" ? config.environment.darkColor : config.environment.lightColor;
           } else {
-              bodyGradient.addColorStop(0, '#FFFFFF');
-              bodyGradient.addColorStop(1, config.environment.lightColor);
+              // Gradient in normal mode
+              const bodyGradient = ctx.createLinearGradient(0, -config.organismSize * 1.5, 0, config.organismSize);
+              if (this.species === "alpha") {
+                  bodyGradient.addColorStop(0, config.environment.darkColor);
+                  bodyGradient.addColorStop(1, '#404040');
+              } else {
+                  bodyGradient.addColorStop(0, '#FFFFFF');
+                  bodyGradient.addColorStop(1, config.environment.lightColor);
+              }
+              ctx.fillStyle = bodyGradient;
           }
-          ctx.fillStyle = bodyGradient;
           ctx.fill(); 
           
           // Outline with status coloring
-          if (this.isOnHomeTurf) {
+          if (this.isOnHomeTurf && !lowGraphicsMode) {
               ctx.strokeStyle = "#FF6347";
               ctx.lineWidth = 2;
               ctx.shadowColor = "#FF6347";
               ctx.shadowBlur = 6;
           } else {
               ctx.strokeStyle = this.species === "alpha" ? "#666" : "#999";
-              ctx.lineWidth = 1.5;
+              ctx.lineWidth = 1;
               ctx.shadowBlur = 0;
           }
           ctx.stroke(); 
           
-          // Direction indicator (eye)
-          ctx.fillStyle = this.species === "alpha" ? "#FFFFFF" : "#000000";
-          ctx.beginPath();
-          ctx.arc(0, -config.organismSize * 0.5, config.organismSize * 0.3, 0, Math.PI * 2);
-          ctx.fill();
+          // Direction indicator (eye) - skip in low graphics mode
+          if (!lowGraphicsMode) {
+              ctx.fillStyle = this.species === "alpha" ? "#FFFFFF" : "#000000";
+              ctx.beginPath();
+              ctx.arc(0, -config.organismSize * 0.5, config.organismSize * 0.3, 0, Math.PI * 2);
+              ctx.fill();
+          }
           
           ctx.restore(); 
       }
@@ -319,93 +330,156 @@ document.addEventListener("DOMContentLoaded", () => {
       
       draw() { 
           const size = 3; 
-          const pulse = Math.sin(frameCount * 0.08 + this.pulseOffset) * 0.3 + 1;
           
           ctx.save(); 
           ctx.translate(this.x, this.y); 
           
-          // Glow effect
-          const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 3 * pulse);
-          glowGradient.addColorStop(0, 'rgba(34, 197, 94, 0.4)');
-          glowGradient.addColorStop(0.5, 'rgba(34, 197, 94, 0.2)');
-          glowGradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
-          ctx.fillStyle = glowGradient;
-          ctx.beginPath();
-          ctx.arc(0, 0, size * 3 * pulse, 0, Math.PI * 2);
-          ctx.fill();
-          
-          // Main manna diamond shape
-          ctx.rotate(Math.PI / 4 + frameCount * 0.02); 
-          
-          const gradient = ctx.createLinearGradient(-size, -size, size, size);
-          gradient.addColorStop(0, '#10b981');
-          gradient.addColorStop(0.5, '#22c55e');
-          gradient.addColorStop(1, '#34d399');
-          
-          ctx.fillStyle = gradient;
-          ctx.shadowColor = '#22c55e';
-          ctx.shadowBlur = 8;
-          ctx.fillRect(-size * pulse, -size * pulse, size * 2 * pulse, size * 2 * pulse); 
-          
-          // Inner highlight
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-          ctx.fillRect(-size * 0.5 * pulse, -size * 0.5 * pulse, size * pulse, size * pulse);
+          if (lowGraphicsMode) {
+              // Simple static square in low graphics mode
+              ctx.fillStyle = '#22c55e';
+              ctx.fillRect(-size, -size, size * 2, size * 2);
+          } else {
+              const pulse = Math.sin(frameCount * 0.08 + this.pulseOffset) * 0.3 + 1;
+              
+              // Glow effect
+              const glowGradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 3 * pulse);
+              glowGradient.addColorStop(0, 'rgba(34, 197, 94, 0.4)');
+              glowGradient.addColorStop(0.5, 'rgba(34, 197, 94, 0.2)');
+              glowGradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
+              ctx.fillStyle = glowGradient;
+              ctx.beginPath();
+              ctx.arc(0, 0, size * 3 * pulse, 0, Math.PI * 2);
+              ctx.fill();
+              
+              // Main manna diamond shape
+              ctx.rotate(Math.PI / 4 + frameCount * 0.02); 
+              
+              const gradient = ctx.createLinearGradient(-size, -size, size, size);
+              gradient.addColorStop(0, '#10b981');
+              gradient.addColorStop(0.5, '#22c55e');
+              gradient.addColorStop(1, '#34d399');
+              
+              ctx.fillStyle = gradient;
+              ctx.shadowColor = '#22c55e';
+              ctx.shadowBlur = 8;
+              ctx.fillRect(-size * pulse, -size * pulse, size * 2 * pulse, size * 2 * pulse); 
+              
+              // Inner highlight
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+              ctx.fillRect(-size * 0.5 * pulse, -size * 0.5 * pulse, size * pulse, size * pulse);
+          }
           
           ctx.restore(); 
       } 
   }
 
   
-  function getZoneForOrganism(organism) { const centerX = ui.simulationCanvas.width / 2; const centerY = ui.simulationCanvas.height / 2; const orgAngle = Math.atan2(organism.y - centerY, organism.x - centerX); let relativeAngle = (orgAngle - environment.angle) % (2 * Math.PI); if (relativeAngle < 0) relativeAngle += 2 * Math.PI; return relativeAngle < Math.PI ? "dark" : "light"; }
-  function drawEnvironment() { 
-      const centerX = ui.simulationCanvas.width / 2; 
-      const centerY = ui.simulationCanvas.height / 2; 
-      const radius = Math.sqrt(centerX ** 2 + centerY ** 2); 
+  // Generate chaotic zones
+  function generateChaoticZones() {
+      environment.zones = [];
+      const numZones = 8 + Math.floor(Math.random() * 5); // 8-12 zones
       
+      for (let i = 0; i < numZones; i++) {
+          const centerX = Math.random() * ui.simulationCanvas.width;
+          const centerY = Math.random() * ui.simulationCanvas.height;
+          const radius = 100 + Math.random() * 250;
+          const type = Math.random() < 0.5 ? "dark" : "light";
+          const rotationSpeed = (Math.random() - 0.5) * 0.001;
+          const angle = Math.random() * Math.PI * 2;
+          
+          environment.zones.push({
+              x: centerX,
+              y: centerY,
+              radius: radius,
+              type: type,
+              angle: angle,
+              rotationSpeed: rotationSpeed,
+              weight: 0.5 + Math.random() * 0.5 // Zone influence weight
+          });
+      }
+  }
+  
+  function getZoneForOrganism(organism) { 
+      let darkInfluence = 0;
+      let lightInfluence = 0;
+      
+      // Check each zone's influence
+      environment.zones.forEach(zone => {
+          const dx = organism.x - zone.x;
+          const dy = organism.y - zone.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < zone.radius) {
+              // Calculate influence based on distance (stronger near center)
+              const influence = (1 - distance / zone.radius) * zone.weight;
+              
+              if (zone.type === "dark") {
+                  darkInfluence += influence;
+              } else {
+                  lightInfluence += influence;
+              }
+          }
+      });
+      
+      // Default to light if no zone influence
+      if (darkInfluence === 0 && lightInfluence === 0) {
+          return "light";
+      }
+      
+      return darkInfluence > lightInfluence ? "dark" : "light";
+  }
+  function drawEnvironment() { 
       ctx.save(); 
       
-      // Dark zone with subtle gradient
-      const darkGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-      darkGradient.addColorStop(0, '#2a2a2a');
-      darkGradient.addColorStop(1, config.environment.darkColor);
-      ctx.fillStyle = darkGradient;
-      ctx.beginPath(); 
-      ctx.moveTo(centerX, centerY); 
-      ctx.arc(centerX, centerY, radius, environment.angle, environment.angle + Math.PI); 
-      ctx.closePath(); 
-      ctx.fill(); 
+      // Fill base color (light)
+      ctx.fillStyle = lowGraphicsMode ? config.environment.lightColor : '#f5f5f5';
+      ctx.fillRect(0, 0, ui.simulationCanvas.width, ui.simulationCanvas.height);
       
-      // Light zone with subtle gradient
-      const lightGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, radius);
-      lightGradient.addColorStop(0, '#FFFFFF');
-      lightGradient.addColorStop(1, '#f5f5f5');
-      ctx.fillStyle = lightGradient;
-      ctx.beginPath(); 
-      ctx.moveTo(centerX, centerY); 
-      ctx.arc(centerX, centerY, radius, environment.angle + Math.PI, environment.angle + 2 * Math.PI); 
-      ctx.closePath(); 
-      ctx.fill(); 
-      
-      // Boundary line with glow
-      ctx.strokeStyle = 'rgba(100, 100, 100, 0.3)';
-      ctx.lineWidth = 2;
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-      ctx.shadowBlur = 10;
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.lineTo(
-          centerX + Math.cos(environment.angle) * radius,
-          centerY + Math.sin(environment.angle) * radius
-      );
-      ctx.stroke();
-      
-      ctx.beginPath();
-      ctx.moveTo(centerX, centerY);
-      ctx.lineTo(
-          centerX + Math.cos(environment.angle + Math.PI) * radius,
-          centerY + Math.sin(environment.angle + Math.PI) * radius
-      );
-      ctx.stroke();
+      // Draw chaotic zones
+      environment.zones.forEach(zone => {
+          ctx.save();
+          
+          if (lowGraphicsMode) {
+              // Simple circles in low graphics mode
+              ctx.fillStyle = zone.type === "dark" ? 
+                  config.environment.darkColor : 
+                  config.environment.lightColor;
+              ctx.globalAlpha = 0.8;
+              ctx.beginPath();
+              ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+              ctx.fill();
+          } else {
+              // Gradient zones in normal mode
+              const gradient = ctx.createRadialGradient(
+                  zone.x, zone.y, 0,
+                  zone.x, zone.y, zone.radius
+              );
+              
+              if (zone.type === "dark") {
+                  gradient.addColorStop(0, '#2a2a2a');
+                  gradient.addColorStop(0.7, config.environment.darkColor);
+                  gradient.addColorStop(1, 'rgba(30, 30, 30, 0)');
+              } else {
+                  gradient.addColorStop(0, '#FFFFFF');
+                  gradient.addColorStop(0.7, '#f5f5f5');
+                  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+              }
+              
+              ctx.fillStyle = gradient;
+              ctx.beginPath();
+              ctx.arc(zone.x, zone.y, zone.radius, 0, Math.PI * 2);
+              ctx.fill();
+              
+              // Add subtle zone boundary
+              ctx.strokeStyle = zone.type === "dark" ? 
+                  'rgba(0, 0, 0, 0.1)' : 
+                  'rgba(255, 255, 255, 0.1)';
+              ctx.lineWidth = 2;
+              ctx.stroke();
+          }
+          
+          ctx.restore();
+      });
       
       ctx.restore(); 
   }
@@ -547,6 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
       generation = 1; nextOrgId = 0; frameCount = 0;
       environment.angle = 0; isTraceView = false;
       ui.traceViewBtn.textContent = "Show Traces";
+      generateChaoticZones(); // Generate chaotic environment zones
       generateNewPatches();
       for (let i = 0; i < config.initialAlphaPop; i++) organisms.push(new Organism(Math.random() * ui.simulationCanvas.width, Math.random() * ui.simulationCanvas.height, "alpha"));
       for (let i = 0; i < config.initialBetaPop; i++) organisms.push(new Organism(Math.random() * ui.simulationCanvas.width, Math.random() * ui.simulationCanvas.height, "beta"));
@@ -560,7 +635,20 @@ document.addEventListener("DOMContentLoaded", () => {
               frameCount++;
               if (frameCount % config.generationLengthInFrames === 0 && frameCount > 0) generation++;
               if (frameCount % config.patchGenerationInterval === 0) generateNewPatches();
-              environment.angle = (environment.angle + config.environment.rotationSpeed) % (2 * Math.PI);
+              
+              // Update chaotic zones - each zone rotates independently
+              environment.zones.forEach(zone => {
+                  zone.angle = (zone.angle + zone.rotationSpeed) % (2 * Math.PI);
+                  // Slowly move zone centers for more chaos
+                  zone.x += Math.cos(zone.angle) * 0.1;
+                  zone.y += Math.sin(zone.angle) * 0.1;
+                  
+                  // Keep zones within bounds with wrapping
+                  if (zone.x < -zone.radius) zone.x = ui.simulationCanvas.width + zone.radius;
+                  if (zone.x > ui.simulationCanvas.width + zone.radius) zone.x = -zone.radius;
+                  if (zone.y < -zone.radius) zone.y = ui.simulationCanvas.height + zone.radius;
+                  if (zone.y > ui.simulationCanvas.height + zone.radius) zone.y = -zone.radius;
+              });
               if (Math.random() < config.mannaSpawnRate) spawnManna();
               quadtree.clear();
               organisms.forEach((org) => quadtree.insert(org));
@@ -603,30 +691,33 @@ document.addEventListener("DOMContentLoaded", () => {
               drawEnvironment();
               
               // Enhanced fertile patches with gradient and animation
-              ctx.save(); 
-              fertilePatches.forEach((p, index) => { 
-                  const pulsePhase = (frameCount * 0.01 + index * 0.3) % (Math.PI * 2);
-                  const pulse = Math.sin(pulsePhase) * 0.1 + 0.9;
-                  
-                  const patchGradient = ctx.createRadialGradient(
-                      p.x, p.y, 0,
-                      p.x, p.y, p.radius * pulse
-                  );
-                  patchGradient.addColorStop(0, 'rgba(34, 197, 94, 0.15)');
-                  patchGradient.addColorStop(0.7, 'rgba(34, 197, 94, 0.08)');
-                  patchGradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
-                  
-                  ctx.fillStyle = patchGradient;
-                  ctx.beginPath(); 
-                  ctx.arc(p.x, p.y, p.radius * pulse, 0, 2 * Math.PI); 
-                  ctx.fill(); 
-                  
-                  // Patch outline
-                  ctx.strokeStyle = 'rgba(34, 197, 94, 0.2)';
-                  ctx.lineWidth = 1;
-                  ctx.stroke();
-              });
-              ctx.restore();
+              // Draw fertile patches (skip in low graphics mode for performance)
+              if (!lowGraphicsMode) {
+                  ctx.save(); 
+                  fertilePatches.forEach((p, index) => { 
+                      const pulsePhase = (frameCount * 0.01 + index * 0.3) % (Math.PI * 2);
+                      const pulse = Math.sin(pulsePhase) * 0.1 + 0.9;
+                      
+                      const patchGradient = ctx.createRadialGradient(
+                          p.x, p.y, 0,
+                          p.x, p.y, p.radius * pulse
+                      );
+                      patchGradient.addColorStop(0, 'rgba(34, 197, 94, 0.15)');
+                      patchGradient.addColorStop(0.7, 'rgba(34, 197, 94, 0.08)');
+                      patchGradient.addColorStop(1, 'rgba(34, 197, 94, 0)');
+                      
+                      ctx.fillStyle = patchGradient;
+                      ctx.beginPath(); 
+                      ctx.arc(p.x, p.y, p.radius * pulse, 0, 2 * Math.PI); 
+                      ctx.fill(); 
+                      
+                      // Patch outline
+                      ctx.strokeStyle = 'rgba(34, 197, 94, 0.2)';
+                      ctx.lineWidth = 1;
+                      ctx.stroke();
+                  });
+                  ctx.restore();
+              }
               
               manna.forEach((m) => m.draw());
               organisms.forEach((org) => org.draw());
@@ -695,6 +786,20 @@ document.addEventListener("DOMContentLoaded", () => {
       ui.traceViewBtn.textContent = isTraceView ? "Show Organisms" : "Show Traces";
   }
   
+  // Low graphics mode toggle
+  function toggleLowGraphics() {
+      lowGraphicsMode = !lowGraphicsMode;
+      ui.lowGraphicsBtn.textContent = lowGraphicsMode ? "Low Graphics: On" : "Low Graphics: Off";
+  }
+  
+  // Hide UI toggle
+  function toggleUI() {
+      document.body.classList.toggle('ui-hidden');
+      const isHidden = document.body.classList.contains('ui-hidden');
+      ui.hideUiBtn.setAttribute('aria-label', isHidden ? 'Show UI' : 'Hide UI');
+      ui.hideUiBtn.setAttribute('title', isHidden ? 'Show all UI elements (H)' : 'Hide all UI elements (H)');
+  }
+  
   // Speed adjustment
   function adjustSpeed(delta) {
       gameSpeed = Math.max(0.25, Math.min(100, gameSpeed + delta));
@@ -726,6 +831,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (isRunning) updateStatusBadge();
   });
   ui.traceViewBtn.addEventListener("click", toggleTraceView);
+  ui.lowGraphicsBtn.addEventListener("click", toggleLowGraphics);
+  ui.hideUiBtn.addEventListener("click", toggleUI);
   
   const resizeCanvas = () => { 
       ui.simulationCanvas.width = window.innerWidth; 
@@ -768,6 +875,14 @@ document.addEventListener("DOMContentLoaded", () => {
           case ']':
               e.preventDefault();
               adjustSpeed(0.25);
+              break;
+          case 'g':
+              e.preventDefault();
+              toggleLowGraphics();
+              break;
+          case 'h':
+              e.preventDefault();
+              toggleUI();
               break;
       }
   });
